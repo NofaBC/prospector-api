@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Seekan-AP_LG — Autonomous Prospector (Demo)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <style>
+        :root{
+            --bg:#0b1020; --panel:#0f1530; --panel-2:#12193a; --ink:#e8ecff; --muted:#a6b0d6;
+            --brand:#6c8bff; --brand-2:#8aa1ff; --glow:0 10px 40px rgba(108,139,255,.25);
+            --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --line:rgba(255,255,255,.08);
+        }
+        *{box-sizing:border-box}
+        html,body{margin:0;height:100%;background:linear-gradient(180deg,#070a16, #0c1226 40%, #0c1226);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,'Helvetica Neue',Arial,'Apple Color Emoji','Segoe UI Emoji',sans-serif}
+        a{color:var(--brand);text-decoration:none}
+        .container{max-width:1180px;margin:0 auto;padding:0 20px}
+        .nav{position:sticky;top:0;z-index:30;background:rgba(10,14,30,.7);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+        .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+        .logo{display:flex;gap:12px;align-items:center}
+        .logo-badge{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#4a6fff);
+            display:grid;place-items:center;font-weight:800;color:white;box-shadow:var(--glow)}
+        .logo-text{font-weight:800;letter-spacing:.2px}
+        .logo-sub{opacity:.6;font-weight:600;font-size:12px;margin-top:2px}
+        .nav-cta a{display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;background:linear-gradient(180deg,var(--panel),var(--panel-2));
+            border:1px solid var(--line);color:var(--ink)}
+        .hero{padding:70px 0 40px;position:relative;overflow:hidden}
+        .hero h1{font-size:44px;line-height:1.08;margin:0 0 16px}
+        .hero p{font-size:18px;color:var(--muted);max-width:800px}
+        .badges{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 2px}
+        .badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:12.5px;color:var(--muted)}
+        .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;margin-top:28px}
+        @media (max-width:980px){.grid{grid-template-columns:1fr}}
+        .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;box-shadow:var(--glow)}
+        .card h3{margin:0 0 10px;font-size:18px}
+        .card .head{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--line)}
+        .card .body{padding:16px}
+        .card .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        @media (max-width:720px){.card .row{grid-template-columns:1fr}}
+        label{font-size:12px;color:var(--muted);display:block;margin:0 0 6px}
+        input,select{width:100%;padding:12px 12px;border-radius:10px;border:1px solid var(--line);background:#0a1129;color:var(--ink);outline:none}
+        input::placeholder{color:#7f8ab2}
+        .help{font-size:12px;color:#91a1da;margin-top:6px}
+        .pill{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:13px}
+        .btn{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:linear-gradient(180deg,var(--brand),var(--brand-2));color:white;border:none;cursor:pointer;font-weight:700;box-shadow:var(--glow)}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+        .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--ink)}
+        .muted{color:var(--muted)}
+        .status{display:flex;align-items:center;gap:10px}
+        .dot{width:10px;height:10px;border-radius:999px;background:var(--warn)}
+        .dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
+        .table-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto}
+        table{width:100%;border-collapse:collapse;background:transparent;color:var(--ink)}
+        th,td{padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+        th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#aab6ea;text-align:left;background:rgba(255,255,255,.02)}
+        code, pre{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+        pre{margin:0;background:#0a1129;border:1px solid var(--line);border-radius:12px;padding:14px;max-height:260px;overflow:auto}
+        .footer{padding:40px 0;color:var(--muted);text-align:center;border-top:1px solid var(--line);margin-top:40px}
+        .kbd{border:1px solid var(--line);padding:2px 8px;border-radius:6px;background:#0a1129}
+        .tag{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px}
+        .flex{display:flex;gap:10px;align-items:center}
+        .right{margin-left:auto}
+        .fade{animation:fade .4s ease}
+        @keyframes fade{from{opacity:.5;transform:translateY(6px)}to{opacity:1;transform:none}}
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="container nav-inner">
+            <div class="logo">
+                <div class="logo-badge">SA</div>
+                <div>
+                    <div class="logo-text">Seekan-AP_LG</div>
+                    <div class="logo-sub">Autonomous Prospector • LeadGen SaaS</div>
+                </div>
+            </div>
+            <div class="nav-cta">
+                <a href="#run">Start a Run</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Point at a website. Pick an area. <br/>Get a clean, deduped prospect sheet.</h1>
+            <p>Seekan-AP_LG discovers local prospects with official Google Places APIs, enriches contact emails politely, writes to Google Sheets, mirrors to Firestore, and returns job status you can automate against.</p>
+            <div class="badges">
+                <div class="badge"> ✅  Official Google APIs (Places/Geocoding/Sheets)</div>
+                <div class="badge"> 🤖  Robots.txt Respect (polite enrichment)</div>
+                <div class="badge"> 🧹  Deduped by <code>place_id</code> + domain</div>
+                <div class="badge"> 🔁  Retries + Rate Limits</div>
+                <div class="badge"> 🪝  Optional Completion Webhook</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="container grid" id="run">
+        <!-- Left: Run form -->
+        <div class="card fade">
+            <div class="head">
+                <h3>Start a Run</h3>
+                <div class="tag"><span style="width:8px;height:8px;background:var(--ok);border-radius:999px"></span> Demo UI</div>
+            </div>
+            <div class="body">
+                <div class="row">
+                    <div>
+                        <label>Seed URL (infers vertical)</label>
+                        <input id="seedUrl" placeholder="https://exampledentistry.com" />
+                        <div class="help">Example infers <span class="kbd">dentist</span></div>
+                    </div>
+                    <div>
+                        <label>Area / ZIP</label>
+                        <input id="area" placeholder="21108 or Annapolis, MD" />
+                        <div class="help">ZIP, city/state, or free-form area</div>
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:10px">
+                    <div>
+                        <label>Keyword Override (optional)</label>
+                        <input id="keywordOverride" placeholder="remodeler, electrician, dentist..." />
+                    </div>
+                    <div>
+                        <label>Radius (meters)</label>
+                        <input id="radius" type="number" min="500" max="50000" value="16000" />
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:10px">
+                    <div>
+                        <label>Max Results (cap 300)</label>
+                        <input id="maxResults" type="number" min="10" max="300" value="120" />
+                    </div>
+                    <div>
+                        <label>Completion Webhook (optional)</label>
+                        <input id="webhookUrl" placeholder="https://yourapp.com/hooks/seekan" />
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:14px">
+                    <div class="pill">
+                        <input id="demoMode" type="checkbox" checked style="vertical-align:middle;margin-right:8px" />
+                        <strong>Demo Mode:</strong> use mock response if <code>/api/run</code> isn’t live yet.
+                    </div>
+                    <div class="right">
+                        <button id="runBtn" class="btn">Run Prospecting</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Status -->
+        <div class="card fade">
+            <div class="head">
+                <h3>Job Status</h3>
+                <div class="status"><span id="statusDot" class="dot"></span><span id="statusText" class="muted">Idle</span></div>
+            </div>
+            <div class="body">
+                <div class="row">
+                    <div>
+                        <label>Job ID</label>
+                        <input id="jobId" readonly placeholder="—" />
+                    </div>
+                    <div>
+                        <label>Google Sheet</label>
+                        <input id="sheetUrl" readonly placeholder="—" />
+                        <div class="help"><a id="sheetLink" href="#" target="_blank" rel="noopener">Open sheet</a></div>
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:10px">
+                    <div>
+                        <label>Counts</label>
+                        <input id="counts" readonly placeholder="found 0 • appended 0 • deduped 0" />
+                    </div>
+                    <div>
+                        <label>Delete Endpoint</label>
+                        <input id="deleteCurl" readonly value='curl -X DELETE https://your.app/api/jobs/<id>' />
+                    </div>
+                </div>
+
+                <div style="margin-top:14px">
+                    <label>Raw Response</label>
+                    <pre id="jsonOut">{}</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent jobs & sample results -->
+    <section class="container" style="margin-top:28px">
+        <div class="card fade">
+            <div class="head">
+                <h3>Recent Jobs</h3>
+                <div class="muted">Sample entries (demo)</div>
+            </div>
+            <div class="body">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Created</th><th>Job ID</th><th>Keyword</th><th>Area</th><th>Sheet</th><th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentJobs">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card fade" style="margin-top:24px">
+            <div class="head">
+                <h3>Sample Results (Preview)</h3>
+                <div class="muted">Showing top 6 prospects in this session</div>
+            </div>
+            <div class="body">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th><th>Phone</th><th>Address</th><th>Website</th><th>Email(s)</th><th>Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sampleRows">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            &copy; <span id="yr"></span> Seekan-AP_LG • Built with official Google APIs. No HTML scraping. Be nice to robots.
+        </div>
+    </footer>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const statusDot = $("statusDot"), statusText = $("statusText");
+        const runBtn = $("runBtn"), jsonOut = $("jsonOut");
+        const seedUrl = $("seedUrl"), area = $("area"), keywordOverride = $("keywordOverride");
+        const radius = $("radius"), maxResults = $("maxResults"), webhookUrl = $("webhookUrl");
+        const demoMode = $("demoMode"), jobId = $("jobId"), sheetUrl = $("sheetUrl"), counts = $("counts"), sheetLink = $("sheetLink");
+        const recentJobs = $("recentJobs"), sampleRows = $("sampleRows"), deleteCurl = $("deleteCurl");
+
+        $("yr").textContent = new Date().getFullYear();
+
+        // --- Demo seeds to make the page feel alive ---
+        const demoProspects = [
+            {name:"BrightSmile Dental", phone:"(410) 555-0144", addr:"12 Bay Ave, Annapolis, MD", web:"https://brightsmile.example", email:"info@brightsmile.example", rating:4.7},
+            {name:"Harbor Family Dentistry", phone:"(410) 555-0199", addr:"88 Dock St, Annapolis, MD", web:"https://harborfam.example", email:"hello@harborfam.example", rating:4.6},
+            {name:"Seaside Remodelers", phone:"(410) 555-0112", addr:"22 Shoreline Rd, Pasadena, MD", web:"https://seaside-remodel.example", email:"contact@seaside-remodel.example", rating:4.8},
+            {name:"Annapolis Electric", phone:"(410) 555-0181", addr:"31 Main St, Annapolis, MD", web:"https://annapoliselectric.example", email:"service@annapoliselectric.example", rating:4.5},
+            {name:"Edgewater HVAC", phone:"(443) 555-0173", addr:"901 Pine Dr, Edgewater, MD", web:"https://edgewater-hvac.example", email:"support@edgewater-hvac.example", rating:4.4},
+            {name:"Crown Kitchens & Bath", phone:"(301) 555-0166", addr:"777 Crown Park Ave, Gaithersburg, MD", web:"https://crownkb.example", email:"sales@crownkb.example", rating:4.9},
+        ];
+
+        function paintSamples(list=demoProspects.slice(0,6)){
+            sampleRows.innerHTML = list.map(p => `
+                <tr>
+                    <td>${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(p.phone)}</td>
+                    <td>${escapeHtml(p.addr)}</td>
+                    <td><a href="${escapeHtml(p.web)}" target="_blank" rel="noopener">${escapeHtml(new URL(p.web).hostname)}</a></td>
+                    <td>${escapeHtml(p.email)}</td>
+                    <td>${p.rating ?? "—"}</td>
+                </tr>
+            `).join("");
+        }
+        paintSamples();
+
+        const demoRecent = [
+            {ts:"Just now", id:"job_demo_4711", kw:"dentist", area:"21108", sheet:"https://sheet.example/1", status:"done"},
+            {ts:"3m ago", id:"job_demo_4702", kw:"remodeler", area:"Annapolis, MD", sheet:"https://sheet.example/2", status:"done"},
+            {ts:"9m ago", id:"job_demo_4688", kw:"electrician", area:"Pasadena, MD", sheet:"https://sheet.example/3", status:"done"},
+        ];
+
+        function paintRecent(){
+            recentJobs.innerHTML = demoRecent.map(j => `
+                <tr>
+                    <td>${j.ts}</td>
+                    <td><code>${j.id}</code></td>
+                    <td>${j.kw}</td>
+                    <td>${j.area}</td>
+                    <td><a href="${j.sheet}" target="_blank" rel="noopener">open</a></td>
+                    <td><span class="tag"><span style="width:8px;height:8px;background:var(--ok);border-radius:999px"></span> ${j.status}</span></td>
+                </tr>
+            `).join("");
+        }
+        paintRecent();
+
+        // --- Run flow ---
+        runBtn.addEventListener("click", async () => {
+            const body = {
+                seedUrl: seedUrl.value.trim(),
+                area: area.value.trim(),
+                keywordOverride: emptyToUndef(keywordOverride.value),
+                radius: clampInt(radius.value, 500, 50000) ?? 16000,
+                maxResults: clampInt(maxResults.value, 10, 300) ?? 120,
+                webhookUrl: emptyToUndef(webhookUrl.value),
+            };
+
+            if (!isValidUrl(body.seedUrl)) {
+                toast("Please enter a valid Seed URL (https://...)", "err");
+                seedUrl.focus(); return;
+            }
+            if (!body.area) { toast("Area / ZIP is required.", "err"); area.focus(); return; }
+
+            setStatus("running");
+            lock(true);
+            try {
+                const res = demoMode.checked
+                    ? await mockRun(body)
+                    : await realRun(body);
+                showResult(res);
+                toast("Run created successfully.", "ok");
+                setStatus("done");
+            } catch (e) {
+                console.error(e);
+                toast("Failed to create run. Check console / API.", "err");
+                setStatus("error");
+            } finally {
+                lock(false);
+            }
+        });
+
+        async function realRun(body){
+            const res = await fetch("/api/run", {
+                method:"POST",
+                headers:{"content-type":"application/json"},
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const txt = await res.text().catch(()=>res.statusText);
+                throw new Error(`API ${res.status}: ${txt}`);
+            }
+            return await res.json();
+        }
+
+        // Mock response that looks like the real API contract
+        async function mockRun(body){
+            await delay(800);
+            const jid = "job_" + Math.random().toString(36).slice(2,10);
+            const sid = "sheet_" + Math.random().toString(36).slice(2,9);
+            const sheetUrl = "https://docs.google.com/spreadsheets/d/" + sid;
+            // fake counts
+            const found = Math.min(body.maxResults, 137);
+            const appended = Math.min(found, 120);
+            const deduped = found - appended;
+            // update recent
+            demoRecent.unshift({ts:"Just now", id:jid, kw: body.keywordOverride || inferKeywordFromUrl(body.seedUrl) || "keyword", area: body.area, sheet: sheetUrl, status:"running"});
+            demoRecent.splice(6);
+            paintRecent();
+            // return
+            return {
+                jobId: jid,
+                sheetId: sid,
+                sheetUrl,
+                counts: { found, appended, deduped, errors: 0 }
+            };
+        }
+
+        function showResult(data){
+            jobId.value = data.jobId || "—";
+            sheetUrl.value = data.sheetUrl || "—";
+            counts.value = formatCounts(data.counts);
+            deleteCurl.value = `curl -X DELETE ${location.origin}/api/jobs/${data.jobId}`;
+            sheetLink.href = data.sheetUrl || "#";
+            jsonOut.textContent = pretty(data);
+            // paint a small sample again (unchanged in demo)
+            paintSamples();
+        }
+
+        // --- helpers ---
+        function setStatus(s){
+            statusText.textContent = ({running:"Running",done:"Done",error:"Error",idle:"Idle"})[s] || s;
+            statusDot.className = "dot" + (s==="running"?"":s==="done"?" ok":s==="error"?" err":"");
+        }
+        function lock(v){ runBtn.disabled = v; }
+        function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+        function pretty(o){ return JSON.stringify(o,null,2); }
+        function emptyToUndef(s){ return s?.trim()? s.trim(): undefined; }
+        function clampInt(v, min, max){ const n = parseInt(v,10); if(Number.isNaN(n)) return undefined; return Math.max(min, Math.min(max, n)); }
+        function isValidUrl(u){ try{ new URL(u); return true;}catch{ return false; } }
+        function formatCounts(c={}){ return `found ${c.found||0} • appended ${c.appended||0} • deduped ${c.deduped||0}`; }
+        function inferKeywordFromUrl(u){
+            try{ const host = new URL(u).hostname;
+                if (/dental|tooth|smile|cusp/i.test(host)) return "dentist";
+                if (/remodel|kitchen|bath/i.test(host)) return "remodeler";
+                if (/electric/i.test(host)) return "electrician";
+                if (/hvac|air|heat|cool/i.test(host)) return "hvac";
+                return undefined;
+            } catch { return undefined; }
+        }
+        function escapeHtml(s){
+            return String(s).replace(/[&<>"'`=\/]/g, function (c) {
+                return ({'&':'&amp;','<':'<','>':'>','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'}[c]);
+            });
+        }
+
+        // tiny toast
+        const toastDiv = document.createElement("div");
+        Object.assign(toastDiv.style, {position:"fixed",bottom:"22px",left:"50%",transform:"translateX(-50%)",zIndex:99999});
+        document.body.appendChild(toastDiv);
+        function toast(msg, type="ok"){
+            const el = document.createElement("div");
+            el.textContent = msg;
+            el.className = "pill fade";
+            el.style.minWidth="240px"; el.style.textAlign="center";
+            el.style.borderColor = "var(--line)";
+            el.style.background = type==="ok" ? "rgba(16,185,129,.12)" :
+                                 type==="err"? "rgba(239,68,68,.12)" : "rgba(245,158,11,.12)";
+            toastDiv.appendChild(el);
+            setTimeout(()=>{ el.style.opacity=".0"; el.style.transform="translateY(6px)"; }, 1800);
+            setTimeout(()=>{ el.remove(); }, 2400);
+        }
+
+        // init
+        setStatus("idle");
+        // sensible defaults
+        seedUrl.value = "https://brightsmile.example";
+        area.value = "21108";
+    </script>
+</body>
+</html>
