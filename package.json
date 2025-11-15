@@ -1,7 +1,7 @@
 {
   "name": "prospector-api",
-  "version": "0.1.0",
   "private": true,
+  "version": "1.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,18 +9,23 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.2.5",
-    "react": "^18",
-    "react-dom": "^18",
-    "typescript": "^5",
-    "zod": "^3.23.8",
-    "firebase-admin": "^12.1.0",
-    "@google-cloud/google-auth-library": "^9.6.0",  
-    "colorette": "^2.0.20"
+    "next": "14.2.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "google-auth-library": "^9.14.2",
+    "googleapis": "^144.0.0",
+    "firebase-admin": "^12.6.0",
+    "node-fetch": "^3.3.2",
+    "robots-parser": "^3.0.1",
+    "cheerio": "^1.0.0-rc.12"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18"
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.6.2",
+    "tailwindcss": "^3.4.13",
+    "postcss": "^8.4.45",
+    "autoprefixer": "^10.4.20"
   }
 }
