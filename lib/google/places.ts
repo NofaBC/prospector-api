@@ -1,4 +1,3 @@
-// lib/google/places.ts
 import type { RequestInit } from 'node-fetch';
 
 const BASE = 'https://maps.googleapis.com/maps/api/place';
