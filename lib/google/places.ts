@@ -1,175 +1,68 @@
-import { getEnvVar } from '../env';
-import { logging } from '../logging';
+// lib/google/places.ts
+import type { RequestInit } from 'node-fetch';
 
-const API_KEY = getEnvVar('GOOGLE_MAPS_API_KEY');
-const PLACES_BASE_URL = 'https://places.googleapis.com/v1 ';
+const BASE = 'https://maps.googleapis.com/maps/api/place';
 
-interface Place {
-name: string;
-id: string;
-displayName?: { text: string };
-primaryType: string;
-types: string[];
-formattedAddress?: string;
-location?: { latitude: number; longitude: number };
-rating?: number;
-userRatingCount?: number;
-phoneNumber?: string;
-websiteUri?: string;
-}
-
-interface TextSearchResponse {
-places: Place[];
-nextPageToken?: string;
-}
-
-interface NearbySearchResponse {
-places: Place[];
-nextPageToken?: string;
-}
-
-interface PlaceDetailsResponse {
-name: string;
-id: string;
-displayName?: { text: string };
-primaryType: string;
-types: string[];
-formattedAddress?: string;
-location?: { latitude: number; longitude: number };
-rating?: number;
-userRatingCount?: number;
-phoneNumber?: string;
-websiteUri?: string;
-}
-
-export const searchText = async (
-query: string,
-radius: number,
-pageToken?: string
-): Promise<TextSearchResponse> => {
-const params = new URLSearchParams({
-key: API_KEY,
-query,
-radius: radius.toString(),
-language: 'en'
-});
-
-if (pageToken) {
-params.append('pageToken', pageToken);
-}
-
-const url = ${PLACES_BASE_URL}/places:searchText?${params.toString()};
-
-return makeRequest(url, 'POST', {
-textQuery: query,
-locationBias: {
-circle: {
-radius: radius,
-center: {
-latitude: 0,
-longitude: 0
-}
-}
-}
-});
+type TextSearchArgs = {
+  keyword: string;
+  lat: number;
+  lng: number;
+  apiKey: string;
+  pagetoken?: string;
+  radiusMeters?: number; // optional for biasing
 };
 
-export const searchNearby = async (
-lat: number,
-lng: number,
-radius: number,
-keyword: string,
-pageToken?: string
-): Promise<NearbySearchResponse> => {
-const params = new URLSearchParams({
-key: API_KEY,
-radius: radius.toString(),
-language: 'en'
-});
-
-if (pageToken) {
-params.append('pageToken', pageToken);
-}
-
-const url = ${PLACES_BASE_URL}/places:searchNearby?${params.toString()};
-
-return makeRequest(url, 'POST', {
-includedTypes: [keyword],
-locationRestriction: {
-circle: {
-center: {
-latitude: lat,
-longitude: lng
-},
-radius: radius
-}
-}
-});
+type PlaceDetailsArgs = {
+  placeId: string;
+  apiKey: string;
 };
 
-export const getPlaceDetails = async (placeId: string): Promise<PlaceDetailsResponse> => {
-const fields = [
-'id',
-'displayName',
-'primaryType',
-'types',
-'formattedAddress',
-'location',
-'rating',
-'userRatingCount',
-'phoneNumber',
-'websiteUri'
-];
+export async function textSearch({
+  keyword,
+  lat,
+  lng,
+  apiKey,
+  pagetoken,
+  radiusMeters = 25000
+}: TextSearchArgs) {
+  const params = new URLSearchParams({
+    key: apiKey,
+    query: keyword,
+    location: `${lat},${lng}`,
+    radius: String(radiusMeters)
+  });
+  if (pagetoken) params.set('pagetoken', pagetoken);
 
-const url = ${PLACES_BASE_URL}/places/${placeId}?key=${API_KEY}&requestedLanguage=en&requestedRegion=us&fields=${fields.join(',')};
+  const url = `${BASE}/textsearch/json?${params.toString()}`;
+  const options: RequestInit = {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' }
+  };
 
-return makeRequest(url, 'GET');
-};
-
-const makeRequest = async (url: string, method: string, body?: any): Promise<any> => {
-let retries = 3;
-let delay = 1000;
-
-while (retries >= 0) {
-try {
-const response = await fetch(url, {
-method,
-headers: {
-'Content-Type': 'application/json'
-},
-...(body && { body: JSON.stringify(body) })
-});
-
-if (response.status === 429 || response.status >= 500) {
-if (retries === 0) {
-throw new Error(`API request failed with status ${response.status}`);
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`Places TextSearch failed: ${res.status} ${res.statusText}`);
+  return res.json() as Promise<any>;
 }
 
-logging.warn(`Places API request failed with status ${response.status}, retrying in ${delay}ms...`);
-await sleep(delay);
-delay *= 2; // Exponential backoff
-retries--;
-continue;
-}
+export async function placeDetails({ placeId, apiKey }: PlaceDetailsArgs) {
+  const fields = [
+    'place_id',
+    'name',
+    'formatted_address',
+    'international_phone_number',
+    'website',
+    'rating',
+    'user_ratings_total',
+    'geometry/location'
+  ].join(',');
 
-if (!response.ok) {
-throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
-}
+  const url = `${BASE}/details/json?place_id=${encodeURIComponent(placeId)}&fields=${fields}&key=${apiKey}`;
+  const options: RequestInit = {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' }
+  };
 
-return await response.json();
-} catch (error) {
-if (retries === 0) {
-throw error;
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`Place Details failed: ${res.status} ${res.statusText}`);
+  return res.json() as Promise<any>;
 }
-
-logging.warn(`Places API request failed, retrying in ${delay}ms...`, error);
-await sleep(delay);
-delay *= 2; // Exponential backoff
-retries--;
-}
-}
-
-throw new Error('Unexpected flow in makeRequest');
-};
-
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
