@@ -1,26 +1,26 @@
 {
-"name": "prospector-api",
-"version": "0.1.0",
-"private": true,
-"scripts": {
-"dev": "next dev",
-"build": "next build",
-"start": "next start",
-"lint": "next lint"
-},
-"dependencies": {
-"next": "14.2.5",
-"react": "^18",
-"react-dom": "^18",
-"typescript": "^5",
-"zod": "^3.23.8",
-"firebase-admin": "^12.1.0",
-"@google-cloud/google-auth-library": "^9.7.0",
-"colorette": "^2.0.20"
-},
-"devDependencies": {
-"@types/node": "^20",
-"@types/react": "^18",
-"@types/react-dom": "^18"
-}
+  "name": "prospector-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18",
+    "react-dom": "^18",
+    "typescript": "^5",
+    "zod": "^3.23.8",
+    "firebase-admin": "^12.1.0",
+    "@google-cloud/google-auth-library": "^9.6.0",  // Changed this line
+    "colorette": "^2.0.20"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18"
+  }
 }
