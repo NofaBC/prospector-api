@@ -1,195 +1,164 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react';
 
 interface Job {
-id: string;
-status: string;
-seedUrl: string;
-area: string;
-radius: number;
-maxResults: number;
-sheetId: string;
-sheetUrl: string;
-counts: {
-found: number;
-appended: number;
-deduped: number;
-errors: number;
-};
-createdAt: string;
-updatedAt: string;
-webhookUrl?: string;
+  jobId: string;
+  status: string;
+  sheetUrl?: string;
+  counts: {
+    found: number;
+    appended: number;
+    deduped: number;
+    errors: number;
+  };
 }
 
-interface Prospect {
-name: string;
-phone: string;
-address: string;
-website: string;
-email?: string;
-rating?: number;
-user_ratings_total?: number;
+interface JobStatusProps {
+  jobId: string;
 }
 
-export default function JobStatus({ jobId }: { jobId: string }) {
-const router = useRouter()
-const [job, setJob] = useState<Job | null>(null)
-const [prospects, setProspects] = useState<Prospect[]>([])
-const [loading, setLoading] = useState(true)
-const [processLoading, setProcessLoading] = useState(false)
-const [error, setError] = useState<string | null>(null)
+export default function JobStatus({ jobId }: JobStatusProps) {
+  const [job, setJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-const fetchJob = async () => {
-try {
-const response = await fetch(/api/jobs/${jobId})
-if (!response.ok) {
-throw new Error('Failed to fetch job status')
-}
-const data = await response.json()
-setJob(data.job)
-if (data.prospectsSample) {
-setProspects(data.prospectsSample)
-}
-} catch (err) {
-setError(err instanceof Error ? err.message : 'An unknown error occurred')
-} finally {
-setLoading(false)
-}
-}
+  useEffect(() => {
+    fetchJobStatus();
+    const interval = setInterval(fetchJobStatus, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [jobId]);
 
-const handleProcessNext = async () => {
-setProcessLoading(true)
-try {
-const response = await fetch(/api/jobs/${jobId}, {
-method: 'POST'
-})
-if (!response.ok) {
-throw new Error('Failed to process next batch')
-}
-await fetchJob() // Refresh job status
-} catch (err) {
-setError(err instanceof Error ? err.message : 'An unknown error occurred')
-} finally {
-setProcessLoading(false)
-}
-}
+  const fetchJobStatus = async () => {
+    try {
+      const response = await fetch(`/api/jobs/${jobId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch job status');
+      }
+      const data = await response.json();
+      setJob(data.job);
+      setLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setLoading(false);
+    }
+  };
 
-const handleCancelJob = async () => {
-try {
-const response = await fetch(/api/jobs/${jobId}, {
-method: 'DELETE'
-})
-if (!response.ok) {
-throw new Error('Failed to cancel job')
-}
-router.push('/')
-} catch (err) {
-setError(err instanceof Error ? err.message : 'An unknown error occurred')
-}
-}
+  const processNextBatch = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/jobs/${jobId}`, {
+        method: 'POST'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to process batch');
+      }
+      await fetchJobStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-useEffect(() => {
-fetchJob()
-const interval = setInterval(fetchJob, 5000) // Poll every 5 seconds
-return () => clearInterval(interval)
-}, [jobId])
+  const cancelJob = async () => {
+    if (!confirm('Are you sure you want to cancel this job?')) return;
+    
+    try {
+      const response = await fetch(`/api/jobs/${jobId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to cancel job');
+      }
+      await fetchJobStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  };
 
-if (loading) {
-return <div>Loading job status...</div>
-}
+  if (loading && !job) {
+    return <div className="p-4">Loading job status...</div>;
+  }
 
-if (error) {
-return <div className="text-red-600">Error: {error}</div>
-}
+  if (error) {
+    return <div className="p-4 text-red-600">Error: {error}</div>;
+  }
 
-if (!job) {
-return <div>Job not found</div>
-}
+  if (!job) {
+    return <div className="p-4">Job not found</div>;
+  }
 
-return (
-<div>
-<div className="mb-6">
-<h2 className="text-xl font-semibold mb-2">Job Details</h2>
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-<div><strong>Status:</strong> <span className={px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ job.status === 'done' ? 'bg-green-100 text-green-800' : job.status === 'running' ? 'bg-yellow-100 text-yellow-800' : job.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800' }}>
-{job.status}
-</span></div>
-<div><strong>Seed URL:</strong> {job.seedUrl}</div>
-<div><strong>Area:</strong> {job.area}</div>
-<div><strong>Radius:</strong> {job.radius}m</div>
-<div><strong>Max Results:</strong> {job.maxResults}</div>
-<div><strong>Created:</strong> {new Date(job.createdAt).toLocaleString()}</div>
-<div><strong>Updated:</strong> {new Date(job.updatedAt).toLocaleString()}</div>
-<div><strong>Counts:</strong> Found: {job.counts.found}, Appended: {job.counts.appended}, Deduped: {job.counts.deduped}, Errors: {job.counts.errors}</div>
-</div>
-</div>
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Job Status</h1>
+      
+      <div className="bg-white shadow rounded-lg p-6 mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <p className="text-sm text-gray-600">Job ID</p>
+            <p className="font-mono">{job.jobId}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Status</p>
+            <p className="font-semibold capitalize">{job.status}</p>
+          </div>
+        </div>
 
-{job.sheetUrl && (
-<div className="mb-6">
-<a
-href={job.sheetUrl}
-target="_blank"
-rel="noopener noreferrer"
-className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
->
-Open Google Sheet
-</a>
-</div>
-)}
+        {job.sheetUrl && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 mb-2">Google Sheet</p>
+            <a 
+              href={job.sheetUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              View Spreadsheet →
+            </a>
+          </div>
+        )}
 
-<div className="flex space-x-4 mb-6">
-<button
-onClick={handleProcessNext}
-disabled={processLoading || job.status === 'done' || job.status === 'canceled' || job.status === 'error'}
-className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
->
-{processLoading ? 'Processing...' : 'Process Next Batch'}
-</button>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Found</p>
+            <p className="text-2xl font-bold">{job.counts.found}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Appended</p>
+            <p className="text-2xl font-bold">{job.counts.appended}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Deduped</p>
+            <p className="text-2xl font-bold">{job.counts.deduped}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Errors</p>
+            <p className="text-2xl font-bold text-red-600">{job.counts.errors}</p>
+          </div>
+        </div>
+      </div>
 
-<button
-onClick={handleCancelJob}
-disabled={job.status === 'done' || job.status === 'canceled'}
-className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
->
-Cancel Job
-</button>
-</div>
-
-{prospects.length > 0 && (
-<div className="mb-6">
-<h3 className="text-lg font-medium mb-2">Sample Prospects</h3>
-<div className="overflow-x-auto">
-<table className="min-w-full divide-y divide-gray-200">
-<thead className="bg-gray-50">
-<tr>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
-</tr>
-</thead>
-<tbody className="bg-white divide-y divide-gray-200">
-{prospects.map((prospect, index) => (
-<tr key={index}>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{prospect.name}</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{prospect.phone}</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{prospect.address}</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-{prospect.website ? <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Link</a> : '-'}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{prospect.email || '-'}</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{prospect.rating ? `${prospect.rating}/5 (${prospect.user_ratings_total || 0} reviews)` : '-'}</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</div>
-)}
-</div>
-)
+      <div className="flex gap-4">
+        {job.status === 'running' && (
+          <button
+            onClick={processNextBatch}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : 'Process Next Batch'}
+          </button>
+        )}
+        
+        {(job.status === 'running' || job.status === 'queued') && (
+          <button
+            onClick={cancelJob}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Cancel Job
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
