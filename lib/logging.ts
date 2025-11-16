@@ -1,35 +1,21 @@
-import { getEnvVarWithDefault } from './env';
-import { blue, yellow, red, green } from 'colorette';
+/**
+ * Simple logging utility
+ */
 
-const LOG_LEVEL = getEnvVarWithDefault('LOG_LEVEL', 'info');
-
-const shouldLog = (level: string): boolean => {
-const levels = ['error', 'warn', 'info', 'debug'];
-return levels.indexOf(level) <= levels.indexOf(LOG_LEVEL);
-};
-
-export const logging = {
-info: (message: string, ...args: any[]): void => {
-if (shouldLog('info')) {
-console.log(${blue('[INFO]')} ${new Date().toISOString()} - ${message}, ...args);
+export function logInfo(message: string, ...args: any[]) {
+  console.log(`[INFO] ${message}`, ...args);
 }
-},
 
-warn: (message: string, ...args: any[]): void => {
-if (shouldLog('warn')) {
-console.log(${yellow('[WARN]')} ${new Date().toISOString()} - ${message}, ...args);
+export function logError(message: string, error?: any) {
+  console.error(`[ERROR] ${message}`, error);
 }
-},
 
-error: (message: string, ...args: any[]): void => {
-if (shouldLog('error')) {
-console.log(${red('[ERROR]')} ${new Date().toISOString()} - ${message}, ...args);
+export function logWarning(message: string, ...args: any[]) {
+  console.warn(`[WARN] ${message}`, ...args);
 }
-},
 
-debug: (message: string, ...args: any[]): void => {
-if (shouldLog('debug')) {
-console.log(${green('[DEBUG]')} ${new Date().toISOString()} - ${message}, ...args);
+export function logDebug(message: string, ...args: any[]) {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[DEBUG] ${message}`, ...args);
+  }
 }
-}
-};
