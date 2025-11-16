@@ -1,64 +1,81 @@
-import { getEnvVarAsNumberWithDefault } from './env';
+import { env } from './env';
 
 interface TokenBucket {
-tokens: number;
-lastRefill: number;
+  tokens: number;
+  lastRefill: number;
 }
 
 const buckets = new Map<string, TokenBucket>();
 
-const WINDOW = getEnvVarAsNumberWithDefault('RATE_LIMIT_WINDOW', 600); // 10 minutes default
-const MAX_TOKENS = getEnvVarAsNumberWithDefault('RATE_LIMIT_MAX', 60); // 60 requests per window
-const REFILL_INTERVAL = 10000; // 10 seconds
+/**
+ * Token bucket rate limiter
+ * @param key - Unique key (e.g., IP + seedUrl)
+ * @returns true if allowed, false if rate limited
+ */
+export function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const windowMs = env.rateLimitWindow * 1000; // Convert to milliseconds
+  const maxTokens = env.rateLimitMax;
+  const refillRate = maxTokens / (windowMs / 1000); // Tokens per second
 
-export const checkRateLimit = (key: string): boolean => {
-const now = Date.now();
-let bucket = buckets.get(key);
+  let bucket = buckets.get(key);
 
-if (!bucket) {
-// Create new bucket
-bucket = {
-tokens: MAX_TOKENS - 1,
-lastRefill: now
-};
-buckets.set(key, bucket);
-return true;
+  if (!bucket) {
+    // First request from this key
+    bucket = {
+      tokens: maxTokens - 1,
+      lastRefill: now
+    };
+    buckets.set(key, bucket);
+    return true;
+  }
+
+  // Refill tokens based on time elapsed
+  const timeSinceRefill = now - bucket.lastRefill;
+  const tokensToAdd = (timeSinceRefill / 1000) * refillRate;
+  bucket.tokens = Math.min(maxTokens, bucket.tokens + tokensToAdd);
+  bucket.lastRefill = now;
+
+  if (bucket.tokens >= 1) {
+    bucket.tokens -= 1;
+    return true;
+  }
+
+  return false;
 }
 
-// Calculate how many tokens to refill
-const timePassed = now - bucket.lastRefill;
-const refillTokens = Math.floor(timePassed / REFILL_INTERVAL);
+/**
+ * Get retry-after time in seconds
+ */
+export function getRetryAfter(key: string): number {
+  const bucket = buckets.get(key);
+  if (!bucket) return 0;
 
-if (refillTokens > 0) {
-bucket.tokens = Math.min(MAX_TOKENS, bucket.tokens + refillTokens);
-bucket.lastRefill = now;
+  const windowMs = env.rateLimitWindow * 1000;
+  const maxTokens = env.rateLimitMax;
+  const refillRate = maxTokens / (windowMs / 1000);
+  
+  const timeToNextToken = (1 - bucket.tokens) / refillRate;
+  return Math.ceil(timeToNextToken);
 }
 
-// Check if we have tokens
-if (bucket.tokens > 0) {
-bucket.tokens--;
-return true;
+/**
+ * Create rate limit key from request
+ */
+export function createRateLimitKey(ip: string, seedUrl: string): string {
+  return `${ip}:${seedUrl}`;
 }
 
-return false;
-};
+/**
+ * Clean up old buckets (call periodically)
+ */
+export function cleanupOldBuckets(): void {
+  const now = Date.now();
+  const maxAge = env.rateLimitWindow * 2 * 1000; // Keep for 2x window duration
 
-export const getRetryAfter = (key: string): number => {
-const bucket = buckets.get(key);
-if (!bucket) return 10; // Default to 10 seconds if no bucket exists
-
-// Calculate next refill time
-const nextRefillTime = bucket.lastRefill + REFILL_INTERVAL;
-const retryAfter = Math.ceil((nextRefillTime - Date.now()) / 1000);
-return Math.max(1, retryAfter);
-};
-
-// Cleanup old buckets periodically
-setInterval(() => {
-const now = Date.now();
-for (const [key, bucket] of buckets.entries()) {
-if (now - bucket.lastRefill > WINDOW * 1000) {
-buckets.delete(key);
+  for (const [key, bucket] of buckets.entries()) {
+    if (now - bucket.lastRefill > maxAge) {
+      buckets.delete(key);
+    }
+  }
 }
-}
-}, 60000); // Clean up every minute
