@@ -1,106 +1,105 @@
 import { google } from 'googleapis';
+import { JWT } from 'google-auth-library';
 
-type SheetCell = string | number | null;
-export type SheetRow = {
-  Name: SheetCell;
-  'Email(s)': SheetCell;
-  Phone: SheetCell;
-  Address: SheetCell;
-  Website: SheetCell;
-  Domain: SheetCell;
-  Rating: SheetCell;
-  Reviews: SheetCell;
-  'Place ID': SheetCell;
-  Lat: SheetCell;
-  Lng: SheetCell;
-  Keyword: SheetCell;
-  'Seed URL': SheetCell;
-  'Collected At': SheetCell;
-};
+/**
+ * Get Google Auth client
+ * This runs at runtime to avoid build-time environment variable issues
+ */
+function getGoogleAuth(): JWT {
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
 
-export async function getGoogleJwt() {
-  const svcJson = JSON.parse(
-    Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64!, 'base64').toString()
-  );
-  const jwt = new google.auth.JWT(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    undefined,
-    svcJson.private_key,
-    ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-  );
-  await jwt.authorize();
-  return jwt;
-}
+  if (!privateKey || !clientEmail) {
+    throw new Error(
+      'Missing Google credentials: ' +
+      `GOOGLE_CLIENT_EMAIL=${!!clientEmail}, ` +
+      `GOOGLE_PRIVATE_KEY=${!!privateKey}`
+    );
+  }
 
-export async function createSheet(
-  title: string,
-  parentFolderId?: string
-): Promise<{ sheetId: string; sheetUrl: string }> {
-  const jwt = await getGoogleJwt();
-
-  // Create the file (Google Sheet) in Drive
-  const drive = google.drive({ version: 'v3', auth: jwt });
-  const fileMeta: any = { name: title, mimeType: 'application/vnd.google-apps.spreadsheet' };
-  if (parentFolderId) fileMeta.parents = [parentFolderId];
-
-  const file = await drive.files.create({
-    requestBody: fileMeta,
-    fields: 'id, webViewLink'
-  });
-
-  const sheetId = file.data.id!;
-  const sheetUrl = file.data.webViewLink!;
-
-  // Optionally make readable by anyone (comment out if not desired)
-  // await shareSheetWithAnyone(sheetId); // see helper below
-
-  // Write header row
-  await appendRowsToSheet(sheetId, [
-    [
-      'Name',
-      'Email(s)',
-      'Phone',
-      'Address',
-      'Website',
-      'Domain',
-      'Rating',
-      'Reviews',
-      'Place ID',
-      'Lat',
-      'Lng',
-      'Keyword',
-      'Seed URL',
-      'Collected At'
+  return new google.auth.JWT({
+    email: clientEmail,
+    key: privateKey.replace(/\\n/g, '\n'),
+    scopes: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.file'
     ]
-  ]);
-
-  return { sheetId, sheetUrl };
-}
-
-export async function appendRowsToSheet(sheetId: string, values: (string | number | null)[][]) {
-  const jwt = await getGoogleJwt();
-
-  await jwt.request({
-    url: `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/Sheet1!A1:append`,
-    method: 'POST',
-    params: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' },
-    data: { values } // ✅ Correctly put the payload under `data`
   });
 }
 
 /**
- * Make the sheet readable by anyone with the link (optional).
- * Keep if your UX expects public links; otherwise remove.
+ * Get Google Sheets API client
  */
-export async function shareSheetWithAnyone(sheetId: string) {
-  const jwt = await getGoogleJwt();
+export async function getSheets() {
+  const auth = getGoogleAuth();
+  return google.sheets({ version: 'v4', auth });
+}
 
-  await jwt.request({
-    url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(sheetId)}/permissions`,
-    method: 'POST',
-    data: {
+/**
+ * Get Google Drive API client
+ */
+export async function getDrive() {
+  const auth = getGoogleAuth();
+  return google.drive({ version: 'v3', auth });
+}
+
+/**
+ * Create a new spreadsheet
+ */
+export async function createSpreadsheet(title: string) {
+  const sheets = await getSheets();
+  
+  const response = await sheets.spreadsheets.create({
+    requestBody: {
+      properties: {
+        title
+      }
+    }
+  });
+
+  return response.data;
+}
+
+/**
+ * Append rows to a spreadsheet
+ */
+export async function appendRows(
+  spreadsheetId: string,
+  range: string,
+  values: any[][]
+) {
+  const sheets = await getSheets();
+  
+  const response = await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values
+    }
+  });
+
+  return response.data;
+}
+
+/**
+ * Make spreadsheet publicly readable
+ */
+export async function shareSpreadsheet(spreadsheetId: string) {
+  const drive = await getDrive();
+  
+  await drive.permissions.create({
+    fileId: spreadsheetId,
+    requestBody: {
       role: 'reader',
       type: 'anyone'
-    } // ✅ payload goes under `data`
+    }
   });
+}
+
+/**
+ * Get spreadsheet URL
+ */
+export function getSpreadsheetUrl(spreadsheetId: string): string {
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
 }
