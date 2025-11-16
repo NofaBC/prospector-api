@@ -1,23 +1,45 @@
 import { z } from 'zod';
 
-export const RunJobSchema = z.object({
-seedUrl: z.string().url(),
-area: z.string().min(1),
-keywordOverride: z.string().optional(),
-radius: z.number().min(1).max(50000).optional().default(16000),
-maxResults: z.number().min(1).max(300).optional().default(100),
-webhookUrl: z.string().url().optional()
+/**
+ * Schema for /api/run request body
+ */
+export const runJobSchema = z.object({
+  seedUrl: z.string().url('Invalid seed URL'),
+  area: z.string().min(1, 'Area is required'),
+  keywordOverride: z.string().optional(),
+  radius: z.number().min(1).max(50000).optional().default(16000),
+  maxResults: z.number().min(1).max(300).optional().default(100),
+  webhookUrl: z.string().url('Invalid webhook URL').optional()
 });
 
-export const JobIdSchema = z.string().min(1);
+export type RunJobInput = z.infer<typeof runJobSchema>;
 
-export const WebhookSchema = z.object({
-jobId: z.string().min(1),
-status: z.enum(['queued', 'running', 'done', 'error', 'canceled']),
-counts: z.object({
-found: z.number(),
-appended: z.number(),
-deduped: z.number(),
-errors: z.number()
-})
+/**
+ * Schema for prospect data
+ */
+export const prospectSchema = z.object({
+  jobId: z.string(),
+  placeId: z.string(),
+  name: z.string(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  website: z.string().optional(),
+  domain: z.string().optional(),
+  email: z.string().optional(),
+  lat: z.number(),
+  lng: z.number(),
+  types: z.array(z.string()).optional(),
+  rating: z.number().optional(),
+  user_ratings_total: z.number().optional(),
+  source: z.string().default('places'),
+  createdAt: z.string()
 });
+
+export type Prospect = z.infer<typeof prospectSchema>;
+
+/**
+ * Validate request body
+ */
+export function validateRunJob(data: unknown): RunJobInput {
+  return runJobSchema.parse(data);
+}
