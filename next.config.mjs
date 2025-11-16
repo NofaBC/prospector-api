@@ -2,7 +2,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true
-  // Add other config here if/when needed.
+  // Server Actions are enabled by default in Next.js 14.x
+  // No experimental.serverActions needed
 };
 
 export default nextConfig;
