@@ -1,173 +1,130 @@
-import { logging } from './logging';
+import { logInfo, logWarning } from './logging';
 
-// Simple RFC5322-like email regex
-const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Z|a-z]{2,}\b/g;
+/**
+ * Check robots.txt for a given URL
+ */
+export async function checkRobotsTxt(url: string): Promise<boolean> {
+  try {
+    const urlObj = new URL(url);
+    const robotsUrl = `${urlObj.protocol}//${urlObj.hostname}/robots.txt`;
+    
+    const response = await fetch(robotsUrl, {
+      signal: AbortSignal.timeout(5000)
+    });
 
-interface RobotsTxtResult {
-allowed: boolean;
-delay?: number; // Crawl-delay in seconds
+    if (!response.ok) {
+      // If robots.txt doesn't exist, assume allowed
+      return true;
+    }
+
+    const robotsTxt = await response.text();
+    
+    // Simple check for "Disallow: /"
+    // This is a basic implementation - a full parser would be more complex
+    const lines = robotsTxt.split('\n');
+    let userAgentMatch = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim().toLowerCase();
+      
+      if (trimmed.startsWith('user-agent:')) {
+        userAgentMatch = trimmed.includes('*');
+      }
+      
+      if (userAgentMatch && trimmed === 'disallow: /') {
+        return false;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    logWarning('Error checking robots.txt, assuming allowed', error);
+    return true;
+  }
 }
 
-export const checkRobotsTxt = async (baseUrl: string): Promise<RobotsTxtResult> => {
-try {
-const robotsUrl = new URL('/robots.txt', baseUrl).href;
-const response = await fetch(robotsUrl, {
-method: 'GET',
-headers: {
-'User-Agent': '*'
-},
-signal: AbortSignal.timeout(5000) // 5 second timeout
-});
-
-if (!response.ok) {
-// If robots.txt doesn't exist or is inaccessible, assume allowed
-return { allowed: true };
+/**
+ * Extract email addresses from text
+ */
+export function extractEmails(text: string, domain?: string): string[] {
+  // RFC 5322 simplified email regex
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const emails = text.match(emailRegex) || [];
+  
+  // Filter unique emails
+  const uniqueEmails = [...new Set(emails)];
+  
+  // If domain provided, prioritize emails from that domain
+  if (domain) {
+    const domainEmails = uniqueEmails.filter(email => 
+      email.toLowerCase().includes(domain.toLowerCase())
+    );
+    
+    if (domainEmails.length > 0) {
+      return domainEmails.slice(0, 3);
+    }
+  }
+  
+  // Prioritize common business emails
+  const priority = ['info@', 'contact@', 'hello@', 'support@', 'sales@'];
+  const prioritized = uniqueEmails.sort((a, b) => {
+    const aIndex = priority.findIndex(p => a.toLowerCase().startsWith(p));
+    const bIndex = priority.findIndex(p => b.toLowerCase().startsWith(p));
+    
+    if (aIndex !== -1 && bIndex === -1) return -1;
+    if (aIndex === -1 && bIndex !== -1) return 1;
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+    return 0;
+  });
+  
+  return prioritized.slice(0, 3);
 }
 
-const robotsTxt = await response.text();
-const lines = robotsTxt.split('\n');
+/**
+ * Fetch website and extract emails
+ */
+export async function enrichWithEmail(website: string, domain?: string): Promise<string[]> {
+  try {
+    // Check robots.txt first
+    const allowed = await checkRobotsTxt(website);
+    if (!allowed) {
+      logInfo(`Robots.txt disallows scraping for ${website}`);
+      return [];
+    }
 
-let userAgentMatch = false;
-let allowed = true; // Default to allowed if no rules found
-let delay: number | undefined;
+    // Fetch website content
+    const response = await fetch(website, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ProspectorBot/1.0)'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
 
-for (const line of lines) {
-const trimmedLine = line.trim();
+    if (!response.ok) {
+      return [];
+    }
 
-// Check user agent
-if (trimmedLine.toLowerCase().startsWith('user-agent:')) {
-const userAgent = trimmedLine.substring(10).trim();
-if (userAgent === '*' || userAgent === '*') {
-userAgentMatch = true;
-} else {
-userAgentMatch = false;
+    // Check content type
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      logInfo(`Skipping non-HTML content for ${website}`);
+      return [];
+    }
+
+    // Read limited content (100KB max)
+    const text = await response.text();
+    const limitedText = text.substring(0, 100000);
+
+    // Extract emails
+    const emails = extractEmails(limitedText, domain);
+    
+    if (emails.length > 0) {
+      logInfo(`Found ${emails.length} emails for ${website}`);
+    }
+
+    return emails;
+  } catch (error) {
+    logWarning(`Error enriching ${website}`, error);
+    return [];
+  }
 }
-}
-
-// Only process rules that match our user agent
-if (userAgentMatch) {
-// Check disallow
-if (trimmedLine.toLowerCase().startsWith('disallow:')) {
-const path = trimmedLine.substring(9).trim();
-if (path === '/') {
-allowed = false;
-} else if (path === '' || path === '/') {
-// Empty disallow means allowed
-allowed = true;
-}
-}
-
-// Check allow
-if (trimmedLine.toLowerCase().startsWith('allow:')) {
-const path = trimmedLine.substring(6).trim();
-if (path === '/' || path === '') {
-allowed = true;
-}
-}
-
-// Check crawl delay
-if (trimmedLine.toLowerCase().startsWith('crawl-delay:')) {
-const delayValue = parseFloat(trimmedLine.substring(12).trim());
-if (!isNaN(delayValue)) {
-delay = delayValue;
-}
-}
-}
-}
-
-return { allowed, delay };
-} catch (error) {
-logging.warn(Failed to fetch robots.txt for ${baseUrl}:, error);
-// If we can't fetch robots.txt, assume allowed
-return { allowed: true };
-}
-};
-
-export const extractEmailsFromWebsite = async (websiteUrl: string): Promise<string[]> => {
-if (!websiteUrl) return [];
-
-try {
-// First check robots.txt
-const robotsResult = await checkRobotsTxt(websiteUrl);
-if (!robotsResult.allowed) {
-logging.info(Robots.txt disallows scraping ${websiteUrl});
-return [];
-}
-
-// Add delay if specified in robots.txt
-if (robotsResult.delay) {
-await sleep(robotsResult.delay * 1000);
-}
-
-// Fetch the website content
-const response = await fetch(websiteUrl, {
-method: 'GET',
-headers: {
-'User-Agent': 'Mozilla/5.0 (compatible; DataEnricher/1.0)'
-},
-signal: AbortSignal.timeout(5000), // 5 second timeout
-// Limit response size to 100KB
-size: 100 * 1024
-});
-
-if (!response.ok) {
-logging.warn(`Failed to fetch website ${websiteUrl}: ${response.status}`);
-return [];
-}
-
-const contentType = response.headers.get('content-type');
-if (!contentType || !contentType.includes('text/html')) {
-logging.info(`Skipping non-HTML content for ${websiteUrl}: ${contentType}`);
-return [];
-}
-
-const html = await response.text();
-
-// Extract emails
-const emails = html.match(EMAIL_REGEX) || [];
-
-// Filter for business domain emails
-const websiteDomain = new URL(websiteUrl).hostname.toLowerCase();
-const businessEmails = emails.filter(email => {
-const emailDomain = email.split('@')[1].toLowerCase();
-return emailDomain === websiteDomain;
-});
-
-// Deduplicate and limit to 3
-const uniqueEmails = [...new Set(businessEmails)].slice(0, 3);
-
-// Prefer info@, contact@, hello@ etc. if available
-const preferredEmails = prioritizeEmails(uniqueEmails);
-
-return preferredEmails;
-} catch (error) {
-logging.warn(Error extracting emails from ${websiteUrl}:, error);
-return [];
-}
-};
-
-// Prioritize common business email addresses
-function prioritizeEmails(emails: string[]): string[] {
-if (emails.length <= 1) return emails;
-
-const preferredOrder = ['info@', 'contact@', 'hello@', 'support@', 'sales@', 'admin@'];
-
-return emails.sort((a, b) => {
-const aIndex = preferredOrder.findIndex(pref => a.startsWith(pref));
-const bIndex = preferredOrder.findIndex(pref => b.startsWith(pref));
-
-// If both are in preferred list, sort by preference
-if (aIndex !== -1 && bIndex !== -1) {
-return aIndex - bIndex;
-}
-
-// If only one is in preferred list, prioritize it
-if (aIndex !== -1) return -1;
-if (bIndex !== -1) return 1;
-
-// Otherwise keep original order
-return 0;
-});
-}
-
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
