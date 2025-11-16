@@ -1,60 +1,49 @@
-import { getEnvVar } from '../env';
-import { logging } from '../logging';
+import { env } from '../env';
+import { logError, logInfo } from '../logging';
 
-const API_KEY = getEnvVar('GOOGLE_MAPS_API_KEY');
-const GEOCODE_BASE_URL = 'https://maps.googleapis.com/maps/api/geocode/json ';
-
-export interface GeocodeResult {
-lat: number;
-lng: number;
-formatted_address: string;
+export interface GeoLocation {
+  lat: number;
+  lng: number;
+  formattedAddress?: string;
 }
 
-export const geocode = async (address: string): Promise<GeocodeResult | null> => {
-const params = new URLSearchParams({
-address,
-key: API_KEY
-});
+/**
+ * Geocode an address or area to lat/lng
+ */
+export async function geocodeArea(area: string): Promise<GeoLocation | null> {
+  try {
+    const apiKey = env.googleMapsApiKey;
+    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+    url.searchParams.append('address', area);
+    url.searchParams.append('key', apiKey);
 
-const url = ${GEOCODE_BASE_URL}?${params.toString()};
+    const response = await fetch(url.toString());
+    const data = await response.json();
 
-let retries = 3;
-let delay = 1000;
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      logError(`Geocoding failed for ${area}: ${data.status}`);
+      return null;
+    }
 
-while (retries >= 0) {
-try {
-const response = await fetch(url);
+    const result = data.results[0];
+    const location = result.geometry.location;
 
-if (!response.ok) {
-throw new Error(`Geocoding API request failed with status ${response.status}`);
+    logInfo(`Geocoded ${area} to ${location.lat}, ${location.lng}`);
+
+    return {
+      lat: location.lat,
+      lng: location.lng,
+      formattedAddress: result.formatted_address
+    };
+  } catch (error) {
+    logError(`Error geocoding ${area}`, error);
+    return null;
+  }
 }
 
-const data = await response.json();
-
-if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-return null;
+/**
+ * Check if a string is a US ZIP code
+ */
+export function isZipCode(area: string): boolean {
+  return /^\d{5}(-\d{4})?$/.test(area.trim());
 }
-
-const result = data.results[0];
-return {
-lat: result.geometry.location.lat,
-lng: result.geometry.location.lng,
-formatted_address: result.formatted_address
-};
-} catch (error) {
-if (retries === 0) {
-logging.error('Geocoding failed after retries:', error);
-throw error;
-}
-
-logging.warn(`Geocoding failed, retrying in ${delay}ms...`, error);
-await sleep(delay);
-delay *= 2; // Exponential backoff
-retries--;
-}
-}
-
-return null;
-};
-
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
