@@ -1,15 +1,17 @@
+// lib/google/drive.ts
 import { google } from 'googleapis';
+import { resolveGoogleServiceAccount } from './credentials';
 
 async function getJwt() {
-  const svcJson = JSON.parse(
-    Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64!, 'base64').toString()
-  );
+  const { clientEmail, privateKey } = resolveGoogleServiceAccount();
+
   const jwt = new google.auth.JWT(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    clientEmail,
     undefined,
-    svcJson.private_key,
+    privateKey,
     ['https://www.googleapis.com/auth/drive']
   );
+
   await jwt.authorize();
   return jwt;
 }
@@ -20,6 +22,6 @@ export async function shareFileAnyoneReader(fileId: string) {
   await jwt.request({
     url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions`,
     method: 'POST',
-    data: { role: 'reader', type: 'anyone' } // ✅ correct location for payload
+    data: { role: 'reader', type: 'anyone' } // correct payload location
   });
 }
