@@ -1,25 +1,18 @@
+// lib/google/sheets.ts
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
+import { resolveGoogleServiceAccount } from './credentials';
 
 /**
  * Get Google Auth client
  * This runs at runtime to avoid build-time environment variable issues
  */
 function getGoogleAuth(): JWT {
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-
-  if (!privateKey || !clientEmail) {
-    throw new Error(
-      'Missing Google credentials: ' +
-      `GOOGLE_CLIENT_EMAIL=${!!clientEmail}, ` +
-      `GOOGLE_PRIVATE_KEY=${!!privateKey}`
-    );
-  }
+  const { clientEmail, privateKey } = resolveGoogleServiceAccount();
 
   return new google.auth.JWT({
     email: clientEmail,
-    key: privateKey.replace(/\\n/g, '\n'),
+    key: privateKey,
     scopes: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive.file'
@@ -48,7 +41,7 @@ export async function getDrive() {
  */
 export async function createSpreadsheet(title: string) {
   const sheets = await getSheets();
-  
+
   const response = await sheets.spreadsheets.create({
     requestBody: {
       properties: {
@@ -69,7 +62,7 @@ export async function appendRows(
   values: any[][]
 ) {
   const sheets = await getSheets();
-  
+
   const response = await sheets.spreadsheets.values.append({
     spreadsheetId,
     range,
@@ -87,7 +80,7 @@ export async function appendRows(
  */
 export async function shareSpreadsheet(spreadsheetId: string) {
   const drive = await getDrive();
-  
+
   await drive.permissions.create({
     fileId: spreadsheetId,
     requestBody: {
