@@ -1,0 +1,34 @@
+{
+  "name": "prospector-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.4.22",
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.0.3",
+    "firebase-admin": "^11.10.1",
+    "googleapis": "^122.0.0",
+    "next": "16.0.3",
+    "postcss": "8.5.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "robots-parser": "^3.0.1",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3",
+    "zod": "^3.22.2"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.31"
+  }
+}
