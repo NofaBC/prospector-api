@@ -1,12 +1,18 @@
-cat > lib/types.ts << 'EOF'
-export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'pending' | 'processing' | 'completed' | 'failed';
+export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'canceled';
 
 export interface Job {
   id: string;
-  url: string;
+  url?: string;
+  seedUrl?: string;
   status: JobStatus;
-  createdAt: Date;
-  completedAt?: Date;
+  createdAt: Date | string;
+  completedAt?: Date | string;
+  area?: string;
+  sheetUrl?: string;
+  counts: {
+    found: number;
+    appended: number;
+  };
   result?: any;
 }
 
@@ -19,4 +25,3 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
-EOF
