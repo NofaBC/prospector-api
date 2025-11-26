@@ -1,7 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* app/globals.css - UPDATED for Tailwind v4 */
+@import "tailwindcss";
 
+/* Your custom styles below */
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
