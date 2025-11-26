@@ -1,5 +1,5 @@
 cat > lib/types.ts << 'EOF'
-// Job type definitions
+// Export all types to make this a proper module
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface Job {
